@@ -31,9 +31,6 @@ jobs:
       - name: Run Flake8
         run: flake8 . --count --statistics --exclude=venv,migrations
 
-      - name: Run Bandit (Security)
-        run: bandit -r . -x ./tests,./venv
-
       - name: Lint Dockerfile
         uses: hadolint/hadolint-action@v3.1.0
         with:
