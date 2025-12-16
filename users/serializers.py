@@ -14,9 +14,7 @@ class RegisterSerializer(serializers.ModelSerializer):
 
     def validate_email(self, value):
         if User.objects.filter(email=value).exists():
-            raise serializers.ValidationError(
-                "Пользователь с таким email уже существует."
-            )
+            raise serializers.ValidationError("Пользователь с таким email уже существует.")
         return value
 
     def create(self, validated_data):
@@ -52,8 +50,6 @@ class ChangePasswordSerializer(serializers.Serializer):
     def validate(self, attrs):
         user = self.context["request"].user
         if not user.check_password(attrs["current_password"]):
-            raise serializers.ValidationError(
-                {"current_password": "Текущий пароль неверный."}
-            )
+            raise serializers.ValidationError({"current_password": "Текущий пароль неверный."})
         validate_password(attrs["new_password"], user)
         return attrs

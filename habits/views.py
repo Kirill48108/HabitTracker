@@ -16,9 +16,7 @@ class HabitViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         return Habit.objects.filter(user=self.request.user).order_by("-id")
 
-    @action(
-        detail=False, methods=["get"], url_path="public", permission_classes=[AllowAny]
-    )
+    @action(detail=False, methods=["get"], url_path="public", permission_classes=[AllowAny])
     def public_list(self, request):
         qs = Habit.objects.filter(is_public=True).order_by("-id")
         # Включаем django-filter и остальные бекенды фильтрации/поиска/ordering

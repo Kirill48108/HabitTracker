@@ -1,0 +1,83 @@
+services:
+  db:
+    image: postgres:15
+    container_name: habittracker_db
+    env_file:
+      - .env
+    environment:
+      # Связываем ваши переменные из .env с системными именами Postgres
+      - POSTGRES_DB=${NAME}
+      - POSTGRES_USER=${USER}
+      - POSTGRES_PASSWORD=${PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      # Добавляем флаг -d с именем базы из переменной NAME
+      test: ["CMD-SHELL", "pg_isready -U ${USER} -d ${NAME}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: habittracker_redis
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  celery:
+    build: .
+    container_name: habittracker_celery
+    command: celery -A config worker -l info
+    env_file:
+      - .env
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      web:
+        condition: service_started
+
+  web:
+    build: .
+    container_name: habittracker_web
+    command: >
+      sh -c "python manage.py migrate &&
+             python manage.py collectstatic --no-input &&
+             gunicorn config.wsgi:application --bind 0.0.0.0:8000"
+    env_file:
+      - .env
+    volumes:
+      - .:/app
+      - static_volume:/app/staticfiles  # Добавлено для сбора статики
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  nginx:
+    image: nginx:alpine
+    container_name: habittracker_nginx
+    volumes:
+      # Правильный путь для доп. конфига (без глобальных директив)
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      # Монтируем статику для раздачи (путь должен совпадать с alias в nginx.conf)
+      - static_volume:/app/staticfiles:ro
+    ports:
+      - "80:80"
+    depends_on:
+      - web
+
+volumes:
+  postgres_data:
+  static_volume:

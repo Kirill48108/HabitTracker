@@ -42,9 +42,7 @@ class ObtainTokenView(APIView):
             username=s.validated_data["username"], password=s.validated_data["password"]
         )
         if not user:
-            return Response(
-                {"detail": "Invalid credentials"}, status=status.HTTP_400_BAD_REQUEST
-            )
+            return Response({"detail": "Invalid credentials"}, status=status.HTTP_400_BAD_REQUEST)
         token, _ = Token.objects.get_or_create(user=user)
         return Response({"token": token.key})
 

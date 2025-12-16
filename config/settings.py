@@ -3,15 +3,15 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
+from datetime import timedelta
+
 load_dotenv(override=True)
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 SECRET_KEY = os.getenv("SECRET_KEY")
 DEBUG = True if os.getenv("DEBUG") == "True" else False
-ALLOWED_HOSTS = [
-    h.strip() for h in os.getenv("ALLOWED_HOSTS", "127.0.0.1,localhost").split(",")
-]
+ALLOWED_HOSTS = [h.strip() for h in os.getenv("ALLOWED_HOSTS", "127.0.0.1,localhost").split(",")]
 
 INSTALLED_APPS = [
     "django.contrib.admin",
@@ -91,11 +91,10 @@ USE_I18N = True
 USE_TZ = True
 
 STATIC_URL = "static/"
+STATIC_ROOT = os.path.join(BASE_DIR, "staticfiles")
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
-# DRF, JWT, фильтрация, пагинация, документация
-from datetime import timedelta
 
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [

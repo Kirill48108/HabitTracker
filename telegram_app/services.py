@@ -1,8 +1,10 @@
 import os
+
 import requests
 
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
 TELEGRAM_DEFAULT_PARSE_MODE = os.getenv("TELEGRAM_DEFAULT_PARSE_MODE", "HTML")
+
 
 def send_telegram_message(chat_id: str, text: str, parse_mode: str | None = None) -> None:
     if not TELEGRAM_BOT_TOKEN:
