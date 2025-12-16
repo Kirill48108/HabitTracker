@@ -9,10 +9,10 @@ ENV PYTHONUNBUFFERED=1 \
     PIP_DEFAULT_TIMEOUT=100
 
 # Установка системных зависимостей (Postgres client, build deps)
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential \
-    curl \
-    libpq-dev \
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+    build-essential=12.9ubuntu3 \
+    libpq-dev=16.2-1ubuntu4 \
     && rm -rf /var/lib/apt/lists/*
 
 # Установка poetry
