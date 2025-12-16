@@ -33,7 +33,7 @@ jobs:
         run: poetry run python -m black . --check --diff
 
       - name: Run Flake8
-        run: poetry run python -m flake8 . --count --statistics --exclude=venv,migrations
+        run: poetry run python -m flake8 . --count --statistics --exclude=.venv,venv,migrations
 
       - name: Lint Dockerfile
         uses: hadolint/hadolint-action@v3.1.0
