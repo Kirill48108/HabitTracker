@@ -1,6 +1,7 @@
 services:
   db:
     image: postgres:15
+    restart: always
     env_file:
       - .env
     environment:
@@ -21,6 +22,7 @@ services:
 
   redis:
     image: redis:7-alpine
+    restart: always 
     container_name: habittracker_redis
     ports:
       - "6379:6379"
@@ -33,6 +35,7 @@ services:
   celery:
     build: .
     container_name: habittracker_celery
+    restart: always 
     command: celery -A config worker -l info
     env_file:
       - .env
@@ -47,6 +50,7 @@ services:
   web:
     build: .
     container_name: habittracker_web
+    restart: always 
     command: >
       sh -c "python manage.py migrate &&
              python manage.py collectstatic --no-input &&
@@ -66,6 +70,7 @@ services:
 
   nginx:
     image: nginx:alpine
+    restart: always 
     container_name: habittracker_nginx
     volumes:
       # Правильный путь для доп. конфига (без глобальных директив)
