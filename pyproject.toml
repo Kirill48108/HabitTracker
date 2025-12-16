@@ -41,11 +41,12 @@ build-backend = "poetry.core.masonry.api"
 [tool.black]
 line-length = 100
 target-version = ['py313']
-include = '\.pyi?$'
+# Добавляем исключение .venv
 exclude = '''
 /(
     \.git
   | \.venv
+  | venv
   | migrations
 )/
 '''
@@ -53,8 +54,8 @@ exclude = '''
 [tool.isort]
 profile = "black"
 line_length = 100
-force_alphabetical_sort_within_sections = true
-skip = ["venv", "migrations"]
+# Добавляем исключение .venv
+skip = ["venv", ".venv", "migrations"]
 
 
 [tool.pytest.ini_options]
