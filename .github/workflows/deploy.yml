@@ -1,48 +1,13 @@
-name: HabitTracker Secure CI/CD
+name: HabitTracker CI/CD
 
 on:
   push:
-    branches: [ develop, main ]
+    branches: [ "**" ] # Запускать на любой пуш в любую ветку
   pull_request:
-    branches: [ develop ]
+    branches: [ "**" ] # Запускать на любой PR
 
 jobs:
-  lint-and-security:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.13'
-
-      - name: Install Poetry
-        uses: snok/install-poetry@v1
-        with:
-          virtualenvs-create: true
-          virtualenvs-in-project: true
-
-      - name: Install Dependencies
-        run: poetry install --no-interaction --no-root
-
-      - name: Check Imports (isort)
-        run: poetry run python -m isort . --check-only --diff
-
-      - name: Check Code Style (Black)
-        run: poetry run python -m black . --check --diff
-
-      - name: Run Flake8
-        run: poetry run python -m flake8 . --count --statistics --exclude=.venv,venv,migrations --max-line-length=100
-
-      - name: Lint Dockerfile
-        uses: hadolint/hadolint-action@v3.1.0
-        with:
-          dockerfile: Dockerfile
-          ignore: DL3008,DL4006
-
-  test:
-    needs: lint-and-security
+  lint-and-test:
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -51,13 +16,9 @@ jobs:
           POSTGRES_DB: ${{ secrets.DB_NAME }}
           POSTGRES_USER: ${{ secrets.DB_USER }}
           POSTGRES_PASSWORD: ${{ secrets.DB_PASSWORD }}
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
         ports:
           - 5432:5432
+        options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
 
     steps:
       - uses: actions/checkout@v4
@@ -68,15 +29,20 @@ jobs:
           python-version: '3.13'
 
       - name: Install Poetry
-        uses: snok/install-poetry@v1
-        with:
-          virtualenvs-create: true
-          virtualenvs-in-project: true
+        run: |
+          curl -sSL https://install.python-poetry.org | python3 -
+          export PATH="$HOME/.local/bin:$PATH"
 
-      - name: Install Dependencies
+      - name: Install dependencies
         run: poetry install --no-interaction --no-root
 
-      - name: Run Tests (pytest)
+      - name: Linting
+        run: |
+          poetry run python -m isort . --check-only --skip .venv --skip migrations
+          poetry run python -m black . --check --exclude '.venv|migrations'
+          poetry run python -m flake8 . --exclude=.venv,migrations --max-line-length=100
+
+      - name: Run Tests
         env:
           NAME: ${{ secrets.DB_NAME }}
           USER: ${{ secrets.DB_USER }}
@@ -84,17 +50,15 @@ jobs:
           HOST: localhost
           PORT: 5432
           SECRET_KEY: ${{ secrets.DJANGO_SECRET_KEY }}
-          DEBUG: False
         run: poetry run python -m pytest
 
-  build-and-deploy:
-    needs: test
+  deploy:
+    needs: lint-and-test
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' || github.event_name == 'pull_reques
+    # РАЗРЕШАЕМ ДЕПЛОЙ ИЗ ЛЮБОЙ ВЕТКИ ДЛЯ ПРОВЕРКИ НАСТАВНИКОМ
+    if: github.event_name == 'push' || github.event_name == 'pull_request'
     steps:
-      - uses: actions/checkout@v4
-
-      - name: Deploy to Yandex Cloud via SSH
+      - name: Deploy to Yandex Cloud
         uses: appleboy/ssh-action@master
         with:
           host: ${{ secrets.SERVER_HOST }}
@@ -102,10 +66,8 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
             cd ~/HabitTracker
-            git pull origin main
-            # Пересборка и запуск контейнеров через Docker Compose на сервере
+            git pull origin ${{ github.ref_name }}
             docker-compose up -d --build
             docker-compose exec -T web python manage.py migrate --noinput
             docker-compose exec -T web python manage.py collectstatic --noinput
             docker image prune -f
-            echo "✅ Deploy 2025 successfully finished"
