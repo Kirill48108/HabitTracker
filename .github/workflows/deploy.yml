@@ -2,9 +2,9 @@ name: HabitTracker CI/CD
 
 on:
   push:
-    branches: [ "**" ] # Запускать на любой пуш в любую ветку
+    branches: [ "main", "master", "develop" ] # Ограничьте ветки для деплоя
   pull_request:
-    branches: [ "**" ] # Запускать на любой PR
+    branches: [ "**" ]
 
 jobs:
   lint-and-test:
@@ -18,45 +18,36 @@ jobs:
           POSTGRES_PASSWORD: ${{ secrets.DB_PASSWORD }}
         ports:
           - 5432:5432
-        options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
-
+        options: --health-cmd pg_isready --health-interval 10s
     steps:
       - uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - uses: actions/setup-python@v5
         with:
           python-version: '3.13'
-
       - name: Install Poetry
+        run: curl -sSL https://install.python-poetry.org | python3 - && echo "$HOME/.local/bin" >> $GITHUB_PATH
+      - name: Install deps
+        run: poetry install --no-interaction
+      - name: Linting & Tests
         run: |
-          curl -sSL https://install.python-poetry.org | python3 -
-          export PATH="$HOME/.local/bin:$PATH"
+          poetry run isort . --check-only
+          poetry run black . --check
+          poetry run flake8 . --max-line-length=100
+          poetry run pytest
 
-      - name: Install dependencies
-        run: poetry install --no-interaction --no-root
-
-      - name: Linting
-        run: |
-          poetry run python -m isort . --check-only --skip .venv --skip migrations
-          poetry run python -m black . --check --exclude '.venv|migrations'
-          poetry run python -m flake8 . --exclude=.venv,migrations --max-line-length=100
-
-      - name: Run Tests
-        env:
-          NAME: ${{ secrets.DB_NAME }}
-          USER: ${{ secrets.DB_USER }}
-          PASSWORD: ${{ secrets.DB_PASSWORD }}
-          HOST: localhost
-          PORT: 5432
-          SECRET_KEY: ${{ secrets.DJANGO_SECRET_KEY }}
-        run: poetry run python -m pytest
-
-  deploy:
+  # НОВЫЙ ШАГ: Проверка сборки образа
+  build-check:
     needs: lint-and-test
     runs-on: ubuntu-latest
-    # РАЗРЕШАЕМ ДЕПЛОЙ ИЗ ЛЮБОЙ ВЕТКИ ДЛЯ ПРОВЕРКИ НАСТАВНИКОМ
-    if: github.event_name == 'push' || github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build check
+        run: docker build . --file Dockerfile
+
+  deploy:
+    needs: build-check # Деплой начнется ТОЛЬКО после успешной сборки образа
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
     steps:
       - name: Deploy to Yandex Cloud
         uses: appleboy/ssh-action@master
@@ -67,7 +58,7 @@ jobs:
           script: |
             cd ~/HabitTracker
             git pull origin ${{ github.ref_name }}
-            docker-compose up -d --build
-            docker-compose exec -T web python manage.py migrate --noinput
-            docker-compose exec -T web python manage.py collectstatic --noinput
+            docker compose up -d --build --force-recreate
+            docker compose exec -T web python manage.py migrate --noinput
+            docker compose exec -T web python manage.py collectstatic --noinput
             docker image prune -f
