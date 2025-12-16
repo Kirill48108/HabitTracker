@@ -15,7 +15,5 @@ class TelegramProfileSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         user = self.context["request"].user
-        obj, _ = TelegramProfile.objects.update_or_create(
-            user=user, defaults=validated_data
-        )
+        obj, _ = TelegramProfile.objects.update_or_create(user=user, defaults=validated_data)
         return obj

@@ -1,22 +1,18 @@
 from django.contrib.auth import get_user_model
 from django.test import TestCase
-from rest_framework.test import APITestCase, APIRequestFactory
-from users.serializers import RegisterSerializer, ChangePasswordSerializer
+from rest_framework.test import APIRequestFactory, APITestCase
 
+from users.serializers import ChangePasswordSerializer, RegisterSerializer
 
 User = get_user_model()
 
 
 class UserModelTest(TestCase):
     def test_str_and_unique_email(self):
-        u = User.objects.create_user(
-            username="u1", email="u1@example.com", password="p"
-        )
+        u = User.objects.create_user(username="u1", email="u1@example.com", password="p")
         self.assertIn("u1@example.com", str(u))
         with self.assertRaises(Exception):
-            User.objects.create_user(
-                username="u2", email="u1@example.com", password="p"
-            )
+            User.objects.create_user(username="u2", email="u1@example.com", password="p")
 
 
 class UsersApiTest(APITestCase):
@@ -89,8 +85,15 @@ class UsersSerializerEdgeCasesTest(APITestCase):
     def test_change_password_invalid_current(self):
         u = User.objects.create_user(username="c", email="c@example.com", password="p")
         factory = APIRequestFactory()
-        request = factory.post("/api/auth/password/change/", {"current_password": "wrong", "new_password": "Newpass123!"}, format="json")
+        request = factory.post(
+            "/api/auth/password/change/",
+            {"current_password": "wrong", "new_password": "Newpass123!"},
+            format="json",
+        )
         request.user = u
-        s = ChangePasswordSerializer(data={"current_password": "wrong", "new_password": "Newpass123!"}, context={"request": request})
+        s = ChangePasswordSerializer(
+            data={"current_password": "wrong", "new_password": "Newpass123!"},
+            context={"request": request},
+        )
         self.assertFalse(s.is_valid())
         self.assertIn("current_password", s.errors)

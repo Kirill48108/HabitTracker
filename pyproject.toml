@@ -20,19 +20,48 @@ pillow = "==12.0.0"
 django-filter = "==25.2"
 djangorestframework-simplejwt = "==5.3.1"
 pytest = "^9.0.1"
-
-[tool.poetry.group.lint.dependencies]
-black = "==25.9.0"
-isort = "==7.0.0"
-flake8 = "^7.3.0"
-mypy = "^1.18.2"
-
-
-
+gunicorn = "^23.0.0"
+celery-types = "^0.23.0"
+djangorestframework-stubs = "^3.16.6"
+pytest-django = "^4.11.1"
 
 [tool.poetry.group.dev.dependencies]
 coverage = "^7.11.3"
+black = "==25.9.0"
+isort = "==7.0.0"
+flake8 = "^7.3.0"
+
+
+[tool.poetry.group.lint.dependencies]
 
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
+
+[tool.black]
+line-length = 100
+target-version = ['py313']
+# Добавляем исключение .venv
+exclude = '''
+/(
+    \.git
+  | \.venv
+  | venv
+  | migrations
+)/
+'''
+
+[tool.isort]
+profile = "black"
+line_length = 100
+# Добавляем исключение .venv
+skip = ["venv", ".venv", "migrations"]
+
+
+[tool.pytest.ini_options]
+
+DJANGO_SETTINGS_MODULE = "config.settings"
+
+python_files = ["tests.py", "test_*.py", "*_tests.py"]
+
+addopts = "--reuse-db"

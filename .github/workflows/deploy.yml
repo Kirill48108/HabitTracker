@@ -1,0 +1,77 @@
+name: HabitTracker CI/CD
+
+on:
+  push:
+    branches: [ "**" ]
+  pull_request:
+    branches: [ "**" ]
+
+jobs:
+  lint-and-test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_DB: ${{ secrets.DB_NAME }}
+          POSTGRES_USER: ${{ secrets.DB_USER }}
+          POSTGRES_PASSWORD: ${{ secrets.DB_PASSWORD }}
+        ports:
+          - 5432:5432
+        options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Install Poetry
+        run: |
+          curl -sSL https://install.python-poetry.org | python3 -
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+      - name: Install dependencies
+        run: poetry install --no-interaction --no-root
+      - name: Linting
+        run: |
+          poetry run python -m isort . --check-only --skip .venv --skip migrations
+          poetry run python -m black . --check --exclude '.venv|migrations'
+          poetry run python -m flake8 . --exclude=.venv,migrations --max-line-length=100
+      - name: Run Tests
+        env:
+          NAME: ${{ secrets.DB_NAME }}
+          USER: ${{ secrets.DB_USER }}
+          PASSWORD: ${{ secrets.DB_PASSWORD }}
+          HOST: localhost
+          PORT: 5432
+          SECRET_KEY: ${{ secrets.DJANGO_SECRET_KEY }}
+        run: poetry run python -m pytest
+
+  # ТРЕБОВАНИЕ НАСТАВНИКА: Отдельный job для сборки
+  build:
+    needs: lint-and-test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build Docker image
+        run: docker build . --file Dockerfile
+
+  deploy:
+    # ТРЕБОВАНИЕ НАСТАВНИКА: Зависимость от сборки
+    needs: build 
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' || github.event_name == 'pull_request'
+    steps:
+      - name: Deploy to Yandex Cloud
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            cd ~/HabitTracker
+            git pull origin ${{ github.ref_name }}
+            docker compose up -d --build
+            docker compose exec -T web python manage.py migrate --noinput
+            docker compose exec -T web python manage.py collectstatic --noinput
+            docker image prune -f

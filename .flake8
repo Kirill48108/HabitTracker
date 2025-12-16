@@ -2,7 +2,11 @@
 max-line-length = 100
 exclude =
     .venv,
-    **/migrations/**,
+    venv,
+    migrations,
     __pycache__,
     .git,
-    .pytest_cache
+    .pytest_cache,
+    manage.py
+# Также полезно игнорировать некоторые ошибки Black
+extend-ignore = E203

@@ -1,15 +1,14 @@
-import requests
-from django.utils import timezone
-from habits.models import Habit
 from unittest.mock import patch
+
+import requests
 from django.contrib.auth import get_user_model
-from rest_framework.test import APITestCase
-from telegram_app.models import TelegramProfile
+from django.utils import timezone
+from rest_framework.test import APIRequestFactory, APITestCase, force_authenticate
+
+from habits.models import Habit
 from telegram_app import services as tg_services
-from rest_framework.test import APIRequestFactory, force_authenticate
+from telegram_app.models import TelegramProfile
 from telegram_app.views import TelegramProfileUpsertView
-
-
 
 User = get_user_model()
 
@@ -18,12 +17,8 @@ class TelegramProfileTest(APITestCase):
     def setUp(self):
         self.jwt_url = "/api/auth/jwt/create"
         self.url = "/api/telegram/profile/"
-        self.u = User.objects.create_user(
-            username="u", email="u@example.com", password="p"
-        )
-        tok = self.client.post(
-            self.jwt_url, {"username": "u", "password": "p"}, format="json"
-        ).data
+        self.u = User.objects.create_user(username="u", email="u@example.com", password="p")
+        tok = self.client.post(self.jwt_url, {"username": "u", "password": "p"}, format="json").data
         self.access = tok["access"]
 
     def auth(self):
@@ -62,6 +57,7 @@ class ReminderTaskTest(APITestCase):
         send_habit_reminders()
         self.assertTrue(send_mock.called)
 
+
 class TelegramServicesTest(APITestCase):
     @patch("telegram_app.services.requests.post")
     def test_send_message_no_token_and_success_and_exception(self, post_mock):
@@ -93,11 +89,13 @@ class TelegramServicesTest(APITestCase):
         # восстановим токен
         tg_services.TELEGRAM_BOT_TOKEN = orig_token
 
+
 class TelegramModelStrTest(APITestCase):
     def test_str(self):
         u = User.objects.create_user(username="tg", email="tg@example.com", password="p")
         p = TelegramProfile.objects.create(user=u, chat_id="999")
         self.assertIn("999", str(p))
+
 
 class TelegramViewGetQuerysetTest(APITestCase):
     def test_get_queryset(self):
